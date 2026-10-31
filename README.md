@@ -21,7 +21,7 @@ Developed by **[Ishaan Maheshwari (@ishaaaan17)](https://github.com/ishaaaan17)*
 ### Pillar 1: Financial Precision & Math
 * [x] **1.1 Indian Regulatory Tax Engine** (`src/taxes.rs`): STT, GST, SEBI, Stamp Duty, NSE Exchange charges, Brokerage ₹20 precision calculation.
 * [x] **1.2 Fixed-Point Money & Currency Type** (`src/types/money.rs`): Paise-precision, zero float-rounding bugs for ledger accuracy.
-* [ ] **1.3 Precision Rounding & Math Helpers** (`src/types/math.rs`): Fast fixed-point arithmetic, basis point multipliers, and decimal normalization.
+* [x] **1.3 Precision Rounding & Math Helpers** (`src/types/math.rs`): Fast fixed-point arithmetic, basis point multipliers, and NSE 5p tick size normalization.
 
 ### Pillar 2: Multi-Tenant Accounts & Audit (10,000 Users Scale)
 * [ ] **1.4 Multi-Tenant User & Account State Model** (`src/models/account.rs`): Thread-safe isolated account balances.
