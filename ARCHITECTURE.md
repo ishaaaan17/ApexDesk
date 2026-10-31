@@ -202,7 +202,7 @@ The in-memory matching engine executes thousands of simulated fills per millisec
 * [x] **1.1 Indian Regulatory Tax Engine** (`src/taxes.rs`)
 * [x] **1.2 Fixed-Point Money & Currency Type** (`src/types/money.rs`)
 * [x] **1.3 Precision Rounding & Math Helpers** (`src/types/math.rs`)
-* [ ] **1.4 Multi-Tenant User & Account State Model** (`src/models/account.rs`)
+* [x] **1.4 Multi-Tenant User & Account State Model** (`src/models/account.rs`)
 * [ ] **1.5 Double-Entry Accounting Ledger** (`src/models/ledger.rs`)
 * [ ] **1.6 Portfolio & Position Tracker** (`src/models/portfolio.rs`)
 * [ ] **1.7 Bracket, Market, Limit & Stop Order State Machine** (`src/models/order.rs`)

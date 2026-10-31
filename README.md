@@ -24,7 +24,7 @@ Developed by **[Ishaan Maheshwari (@ishaaaan17)](https://github.com/ishaaaan17)*
 * [x] **1.3 Precision Rounding & Math Helpers** (`src/types/math.rs`): Fast fixed-point arithmetic, basis point multipliers, and NSE 5p tick size normalization.
 
 ### Pillar 2: Multi-Tenant Accounts & Audit (10,000 Users Scale)
-* [ ] **1.4 Multi-Tenant User & Account State Model** (`src/models/account.rs`): Thread-safe isolated account balances.
+* [x] **1.4 Multi-Tenant User & Account State Model** (`src/models/account.rs`): Thread-safe isolated account balances, margin allocation, and trade settlement.
 * [ ] **1.5 Double-Entry Accounting Ledger** (`src/models/ledger.rs`): Immutable audit trail where every debit matches a credit.
 * [ ] **1.6 Portfolio & Position Tracker** (`src/models/portfolio.rs`): Real-time Mark-to-Market (MTM) & FIFO cost accounting.
 
