@@ -25,7 +25,7 @@ Developed by **[Ishaan Maheshwari (@ishaaaan17)](https://github.com/ishaaaan17)*
 
 ### Pillar 2: Multi-Tenant Accounts & Audit (10,000 Users Scale)
 * [x] **1.4 Multi-Tenant User & Account State Model** (`src/models/account.rs`): Thread-safe isolated account balances, margin allocation, and trade settlement.
-* [ ] **1.5 Double-Entry Accounting Ledger** (`src/models/ledger.rs`): Immutable audit trail where every debit matches a credit.
+* [x] **1.5 Double-Entry Accounting Ledger** (`src/models/ledger.rs`): Immutable audit trail where every debit matches a credit.
 * [ ] **1.6 Portfolio & Position Tracker** (`src/models/portfolio.rs`): Real-time Mark-to-Market (MTM) & FIFO cost accounting.
 
 ### Pillar 3: Order Management System (OMS)
