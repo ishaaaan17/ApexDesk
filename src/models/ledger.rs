@@ -16,7 +16,9 @@ pub enum LedgerAccountType {
     LiabilityUserEquity,
     /// Regulatory fees, brokerage, STT, and exchange turnover taxes paid.
     ExpenseTradingFees,
-    /// Realized market profits.
+    /// Realized gross trading loss.
+    ExpenseTradingLoss,
+    /// Realized gross market profit.
     RevenueTradingGains,
 }
 
@@ -158,18 +160,18 @@ impl Ledger {
         Ok(self.transactions.last().unwrap())
     }
 
-    /// Records a settled trade with gross gain, position closure, and regulatory fees.
+    /// Records a settled trade with gross gain/loss, position closure, and regulatory fees.
     pub fn record_trade_settlement(
         &mut self,
         user_id: UserId,
         symbol: &str,
         cost_basis: Money,
-        net_cash_received: Money,
+        net_cash_returned: Money,
         fees: Money,
-        net_profit: Money,
+        gross_pnl: Money,
     ) -> Result<&Transaction, LedgerError> {
         let mut entries = vec![
-            LedgerEntry::debit(LedgerAccountType::AssetCash, net_cash_received),
+            LedgerEntry::debit(LedgerAccountType::AssetCash, net_cash_returned),
             LedgerEntry::credit(LedgerAccountType::AssetPosition(symbol.to_string()), cost_basis),
         ];
 
@@ -177,8 +179,10 @@ impl Ledger {
             entries.push(LedgerEntry::debit(LedgerAccountType::ExpenseTradingFees, fees));
         }
 
-        if net_profit.is_positive() {
-            entries.push(LedgerEntry::credit(LedgerAccountType::RevenueTradingGains, net_profit));
+        if gross_pnl.is_positive() {
+            entries.push(LedgerEntry::credit(LedgerAccountType::RevenueTradingGains, gross_pnl));
+        } else if gross_pnl.is_negative() {
+            entries.push(LedgerEntry::debit(LedgerAccountType::ExpenseTradingLoss, gross_pnl.abs()));
         }
 
         let tx = Transaction::new(
@@ -258,12 +262,11 @@ mod tests {
         ledger.record_position_entry(user, "RELIANCE.NS", cost).unwrap();
 
         // 3. Settle trade with Rs 2,000 gross gain, Rs 138.64 taxes, Rs 1,861.36 net gain
-        // Total cash returned to wallet: Rs 25,000 + Rs 1,861.36 = Rs 26,861.36
         let net_cash = Money::from_paise(2686136);
         let fees = Money::from_paise(13864);
-        let net_profit = Money::from_paise(200000); // Gross gain credited to revenue
+        let gross_gain = Money::from_paise(200000);
 
-        ledger.record_trade_settlement(user, "RELIANCE.NS", cost, net_cash, fees, net_profit).unwrap();
+        ledger.record_trade_settlement(user, "RELIANCE.NS", cost, net_cash, fees, gross_gain).unwrap();
 
         // Audit check across all transactions
         assert_eq!(ledger.transaction_count(), 3);
