@@ -30,7 +30,7 @@ Developed by **[Ishaan Maheshwari (@ishaaaan17)](https://github.com/ishaaaan17)*
 
 ### Pillar 3: Order Management System (OMS)
 * [x] **1.7 Bracket, Market, Limit & Stop Order State Machine** (`src/models/order.rs`): Complete order lifecycle, bracket validation, partial fills, and terminal state protection.
-* [ ] **1.8 In-Memory Order Book** (`src/orderbook/mod.rs`): Price-Time priority matching queue.
+* [x] **1.8 In-Memory Order Book** (`src/orderbook/mod.rs`): Price-Time priority Level-2 market depth matching queue.
 * [ ] **1.9 High-Throughput Matching Engine** (`src/broker/matching_engine.rs`): Simulates real fills, partial fills, and slippage.
 
 ### Pillar 4: Pre-Trade Risk & Circuit Breakers

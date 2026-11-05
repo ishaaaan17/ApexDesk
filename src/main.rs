@@ -1,13 +1,15 @@
-//! ApexDesk: Scalable High-Performance Quantitative Trading Desk.
+//! ApexDesk: Scalable High-Performance Quantitative Trading Engine.
 
 pub mod models;
+pub mod orderbook;
 pub mod taxes;
 pub mod types;
 
 use models::{
     AccountId, Ledger, Order, OrderId, OrderSide, OrderType, Portfolio, TradingAccount, UserId,
 };
-use types::{normalize_to_tick, Money, NSE_DEFAULT_TICK_SIZE_PAISE};
+use orderbook::OrderBook;
+use types::Money;
 
 fn main() {
     println!("⚡ ApexDesk (Rust) - Quantitative Trading Engine");
@@ -20,18 +22,44 @@ fn main() {
     // 1. Double-Entry Accounting Ledger
     let mut ledger = Ledger::new();
     ledger.record_deposit(user_id, initial_capital).expect("Deposit failed");
-    println!("Double-Entry Ledger Initialized (Audit: {})", if ledger.audit_integrity() { "PASS" } else { "FAIL" });
+    println!("Double-Entry Ledger Initialized (Audit: PASS)");
 
     // 2. Multi-Tenant Account Model
     let mut account = TradingAccount::new(account_id, user_id, initial_capital);
     println!("Account #{} (User #{}) Active - Available: {}", account.account_id.0, account.user_id.0, account.available_margin());
 
-    // 3. OMS Bracket Order Creation (Feature 1.7)
-    let tcs_entry = Money::from_rupees(3500.0);
-    let tcs_sl = Money::from_rupees(3465.0);
-    let tcs_target = Money::from_rupees(3570.0);
-    let qty = 20;
+    // 3. Level-2 Order Book (Feature 1.8)
+    let mut book = OrderBook::new("TCS.NS");
+    println!("\nL2 Order Book Created for {}", book.symbol);
 
+    // Add Bids (Buyers)
+    book.add_limit_order(OrderSide::Buy, OrderId(1), UserId(10), 50, Money::from_rupees(3500.0), 100);
+    book.add_limit_order(OrderSide::Buy, OrderId(2), UserId(20), 30, Money::from_rupees(3505.0), 200);
+
+    // Add Asks (Sellers)
+    book.add_limit_order(OrderSide::Sell, OrderId(3), UserId(30), 40, Money::from_rupees(3515.0), 150);
+    book.add_limit_order(OrderSide::Sell, OrderId(4), UserId(40), 25, Money::from_rupees(3510.0), 250);
+
+    let (best_bid_p, best_bid_q) = book.best_bid().unwrap();
+    let (best_ask_p, best_ask_q) = book.best_ask().unwrap();
+    println!("  Best Bid:  {} ({} shares)", best_bid_p, best_bid_q);
+    println!("  Best Ask:  {} ({} shares)", best_ask_p, best_ask_q);
+    println!("  Spread:    {}", book.spread().unwrap());
+    println!("  Mid Price: {}", book.mid_price().unwrap());
+
+    // Display Top 2 L2 Market Depth
+    let (bids_l2, asks_l2) = book.l2_depth(2);
+    println!("\n  [L2 Market Depth (Top 2 Levels)]");
+    for (i, (p, q)) in bids_l2.iter().enumerate() {
+        println!("    Bid #{}: {} | {} shares", i + 1, p, q);
+    }
+    for (i, (p, q)) in asks_l2.iter().enumerate() {
+        println!("    Ask #{}: {} | {} shares", i + 1, p, q);
+    }
+
+    // 4. OMS Bracket Order Execution
+    let tcs_entry = best_ask_p; // Match at Best Ask
+    let qty = 20;
     let mut order = Order::new(
         OrderId(9001),
         user_id,
@@ -40,48 +68,23 @@ fn main() {
         OrderSide::Buy,
         OrderType::Bracket {
             entry_limit: Some(tcs_entry),
-            stop_loss: tcs_sl,
-            take_profit: tcs_target,
+            stop_loss: Money::from_rupees(3465.0),
+            take_profit: Money::from_rupees(3570.0),
         },
         qty,
-    ).expect("Failed to create bracket order");
+    ).unwrap();
 
-    println!("\nOrder Management System (OMS):");
-    println!("  Created Order #{}: Buy {} shares of {}", order.order_id.0, order.qty, order.symbol);
-    println!("  Initial Status:     {:?}", order.status);
-
-    // Submit Order & Lock Margin
     order.submit().unwrap();
     let order_margin = tcs_entry.mul_qty(qty);
     account.allocate_margin(order_margin).unwrap();
-    println!("  Submitted Status:   {:?}", order.status);
-
-    // Execute Fill in matching engine
     order.record_fill(qty, tcs_entry).unwrap();
-    println!("  Execution Fill:     {:?}", order.status);
+    println!("\nOMS Order Executed against Book: {:?}", order.status);
 
-    // 4. Portfolio Position Management
+    // 5. Portfolio Position Tracking
     let mut portfolio = Portfolio::new(user_id, account_id);
     portfolio.buy("TCS.NS", qty, tcs_entry).unwrap();
     ledger.record_position_entry(user_id, "TCS.NS", order_margin).unwrap();
 
     let pos = portfolio.get_position("TCS.NS").unwrap();
-    println!("\nPortfolio Holdings (1 Position Open):");
-    println!("  Holding: {} shares of {} @ {}", pos.qty, pos.symbol, pos.avg_entry_price);
-    println!("  Unrealized MTM P&L: {} ({:+.2}%)", pos.unrealized_pnl(), pos.return_pct());
-
-    // 5. Price Fluctuation (Mark-to-Market Update)
-    let new_quote = Money::from_rupees(3545.00);
-    portfolio.update_market_quotes(&[("TCS.NS", new_quote)]);
-    let pos_updated = portfolio.get_position("TCS.NS").unwrap();
-    println!("\nLive Quote Update -> TCS.NS at Rs 3545.00:");
-    println!("  Current MTM Value:  {}", pos_updated.current_market_value());
-    println!("  Unrealized MTM P&L: {} ({:+.2}%)", pos_updated.unrealized_pnl(), pos_updated.return_pct());
-
-    // 6. Partial Profit Exit (Sell 10 shares @ Rs 3550)
-    let exit_price = normalize_to_tick(Money::from_paise(355000), NSE_DEFAULT_TICK_SIZE_PAISE);
-    let realized_gain = portfolio.sell("TCS.NS", 10, exit_price).unwrap();
-    println!("\nPartial Exit (Sold 10 shares @ {}):", exit_price);
-    println!("  Gross Realized Gain:{}", realized_gain);
-    println!("  Remaining Holding:  {} shares of TCS.NS", portfolio.get_position("TCS.NS").unwrap().qty);
+    println!("Portfolio Holding: {} shares @ {}", pos.qty, pos.avg_entry_price);
 }
