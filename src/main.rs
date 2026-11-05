@@ -1,10 +1,12 @@
 //! ApexDesk: Scalable High-Performance Quantitative Trading Engine.
 
+pub mod broker;
 pub mod models;
 pub mod orderbook;
 pub mod taxes;
 pub mod types;
 
+use broker::MatchingEngine;
 use models::{
     AccountId, Ledger, Order, OrderId, OrderSide, OrderType, Portfolio, TradingAccount, UserId,
 };
@@ -57,8 +59,8 @@ fn main() {
         println!("    Ask #{}: {} | {} shares", i + 1, p, q);
     }
 
-    // 4. OMS Bracket Order Execution
-    let tcs_entry = best_ask_p; // Match at Best Ask
+    // 4. High-Throughput Matching Engine (Feature 1.9)
+    let tcs_entry = best_ask_p;
     let qty = 20;
     let mut order = Order::new(
         OrderId(9001),
@@ -66,19 +68,22 @@ fn main() {
         account_id,
         "TCS.NS",
         OrderSide::Buy,
-        OrderType::Bracket {
-            entry_limit: Some(tcs_entry),
-            stop_loss: Money::from_rupees(3465.0),
-            take_profit: Money::from_rupees(3570.0),
+        OrderType::Limit {
+            limit_price: tcs_entry,
         },
         qty,
     ).unwrap();
 
-    order.submit().unwrap();
     let order_margin = tcs_entry.mul_qty(qty);
     account.allocate_margin(order_margin).unwrap();
-    order.record_fill(qty, tcs_entry).unwrap();
-    println!("\nOMS Order Executed against Book: {:?}", order.status);
+
+    let mut engine = MatchingEngine::new();
+    let result = engine.match_against_book(&mut order, &mut book, 1000000);
+    println!("\nMatching Engine Match Status: {:?}", result.status);
+    for fill in &result.fills {
+        println!("  Execution Fill #{}: {} shares @ {} (Maker: #{}, Taker: #{})",
+            fill.fill_id, fill.qty, fill.price, fill.maker_order_id.0, fill.taker_order_id.0);
+    }
 
     // 5. Portfolio Position Tracking
     let mut portfolio = Portfolio::new(user_id, account_id);
