@@ -12,7 +12,7 @@ use models::{
     AccountId, Ledger, Order, OrderId, OrderSide, OrderType, Portfolio, TradingAccount, UserId,
 };
 use orderbook::OrderBook;
-use risk::PreTradeRiskEngine;
+use risk::{CircuitBreakerConfig, DailyCircuitBreaker, PreTradeRiskEngine};
 use types::Money;
 
 fn main() {
@@ -105,4 +105,16 @@ fn main() {
 
     let pos = portfolio.get_position("TCS.NS").unwrap();
     println!("Portfolio Holding: {} shares @ {}", pos.qty, pos.avg_entry_price);
+
+    // 7. Daily Loss Circuit Breaker (Feature 1.11 - User-Configurable)
+    let user_custom_limit_bps = 150; // User sets 1.5% maximum daily loss limit
+    let cb_config = CircuitBreakerConfig::new(user_custom_limit_bps)
+        .with_consecutive_loss_limit(3);
+    let mut circuit_breaker = DailyCircuitBreaker::new(cb_config);
+    println!("\nUser-Configured Circuit Breaker: {} BPS ({}%) Max Daily Loss",
+        user_custom_limit_bps, user_custom_limit_bps as f64 / 100.0);
+
+    circuit_breaker.check_and_update(initial_capital, Money::zero(), portfolio.total_unrealized_pnl(), 1000000)
+        .expect("Circuit breaker tripped");
+    println!("Circuit Breaker Status: PASS (Active, Drawdown within limit)");
 }
