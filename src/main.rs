@@ -4,7 +4,9 @@ pub mod models;
 pub mod taxes;
 pub mod types;
 
-use models::{AccountId, Ledger, Portfolio, TradingAccount, UserId};
+use models::{
+    AccountId, Ledger, Order, OrderId, OrderSide, OrderType, Portfolio, TradingAccount, UserId,
+};
 use types::{normalize_to_tick, Money, NSE_DEFAULT_TICK_SIZE_PAISE};
 
 fn main() {
@@ -24,32 +26,59 @@ fn main() {
     let mut account = TradingAccount::new(account_id, user_id, initial_capital);
     println!("Account #{} (User #{}) Active - Available: {}", account.account_id.0, account.user_id.0, account.available_margin());
 
-    // 3. Portfolio & Position Tracker (Feature 1.6)
-    let mut portfolio = Portfolio::new(user_id, account_id);
+    // 3. OMS Bracket Order Creation (Feature 1.7)
     let tcs_entry = Money::from_rupees(3500.0);
-    let tcs_qty = 20;
-    let tcs_margin = tcs_entry.mul_qty(tcs_qty); // Rs 70,000
+    let tcs_sl = Money::from_rupees(3465.0);
+    let tcs_target = Money::from_rupees(3570.0);
+    let qty = 20;
 
-    account.allocate_margin(tcs_margin).unwrap();
-    portfolio.buy("TCS.NS", tcs_qty, tcs_entry).unwrap();
-    ledger.record_position_entry(user_id, "TCS.NS", tcs_margin).unwrap();
+    let mut order = Order::new(
+        OrderId(9001),
+        user_id,
+        account_id,
+        "TCS.NS",
+        OrderSide::Buy,
+        OrderType::Bracket {
+            entry_limit: Some(tcs_entry),
+            stop_loss: tcs_sl,
+            take_profit: tcs_target,
+        },
+        qty,
+    ).expect("Failed to create bracket order");
 
-    println!("\nPortfolio Holdings (1 Position Open):");
+    println!("\nOrder Management System (OMS):");
+    println!("  Created Order #{}: Buy {} shares of {}", order.order_id.0, order.qty, order.symbol);
+    println!("  Initial Status:     {:?}", order.status);
+
+    // Submit Order & Lock Margin
+    order.submit().unwrap();
+    let order_margin = tcs_entry.mul_qty(qty);
+    account.allocate_margin(order_margin).unwrap();
+    println!("  Submitted Status:   {:?}", order.status);
+
+    // Execute Fill in matching engine
+    order.record_fill(qty, tcs_entry).unwrap();
+    println!("  Execution Fill:     {:?}", order.status);
+
+    // 4. Portfolio Position Management
+    let mut portfolio = Portfolio::new(user_id, account_id);
+    portfolio.buy("TCS.NS", qty, tcs_entry).unwrap();
+    ledger.record_position_entry(user_id, "TCS.NS", order_margin).unwrap();
+
     let pos = portfolio.get_position("TCS.NS").unwrap();
+    println!("\nPortfolio Holdings (1 Position Open):");
     println!("  Holding: {} shares of {} @ {}", pos.qty, pos.symbol, pos.avg_entry_price);
-    println!("  Cost Basis:         {}", pos.cost_basis());
     println!("  Unrealized MTM P&L: {} ({:+.2}%)", pos.unrealized_pnl(), pos.return_pct());
 
-    // 4. Price Fluctuation (Mark-to-Market Update)
-    let new_quote = Money::from_rupees(3545.00); // Rallies +Rs 45/share
+    // 5. Price Fluctuation (Mark-to-Market Update)
+    let new_quote = Money::from_rupees(3545.00);
     portfolio.update_market_quotes(&[("TCS.NS", new_quote)]);
     let pos_updated = portfolio.get_position("TCS.NS").unwrap();
     println!("\nLive Quote Update -> TCS.NS at Rs 3545.00:");
     println!("  Current MTM Value:  {}", pos_updated.current_market_value());
     println!("  Unrealized MTM P&L: {} ({:+.2}%)", pos_updated.unrealized_pnl(), pos_updated.return_pct());
-    println!("  Portfolio Total MTM:{}", portfolio.total_unrealized_pnl());
 
-    // 5. Partial Profit Exit (Sell 10 shares @ Rs 3550)
+    // 6. Partial Profit Exit (Sell 10 shares @ Rs 3550)
     let exit_price = normalize_to_tick(Money::from_paise(355000), NSE_DEFAULT_TICK_SIZE_PAISE);
     let realized_gain = portfolio.sell("TCS.NS", 10, exit_price).unwrap();
     println!("\nPartial Exit (Sold 10 shares @ {}):", exit_price);

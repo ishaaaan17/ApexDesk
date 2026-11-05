@@ -29,7 +29,7 @@ Developed by **[Ishaan Maheshwari (@ishaaaan17)](https://github.com/ishaaaan17)*
 * [x] **1.6 Portfolio & Position Tracker** (`src/models/portfolio.rs`): Real-time Mark-to-Market (MTM) & FIFO cost accounting.
 
 ### Pillar 3: Order Management System (OMS)
-* [ ] **1.7 Bracket, Market, Limit & Stop Order State Machine** (`src/models/order.rs`): Order lifecycle and state transitions.
+* [x] **1.7 Bracket, Market, Limit & Stop Order State Machine** (`src/models/order.rs`): Complete order lifecycle, bracket validation, partial fills, and terminal state protection.
 * [ ] **1.8 In-Memory Order Book** (`src/orderbook/mod.rs`): Price-Time priority matching queue.
 * [ ] **1.9 High-Throughput Matching Engine** (`src/broker/matching_engine.rs`): Simulates real fills, partial fills, and slippage.
 
