@@ -34,7 +34,7 @@ Developed by **[Ishaan Maheshwari (@ishaaaan17)](https://github.com/ishaaaan17)*
 * [x] **1.9 High-Throughput Matching Engine** (`src/broker/matching_engine.rs`): Multi-level book sweeping, partial fills, simulated slippage (BPS), and residual limit order posting.
 
 ### Pillar 4: Pre-Trade Risk & Circuit Breakers
-* [ ] **1.10 Pre-Trade Risk Engine** (`src/risk/pre_trade.rs`): 1% max risk cap per trade and margin verification.
+* [x] **1.10 Pre-Trade Risk Engine** (`src/risk/pre_trade.rs`): Non-bypassable 1% max risk cap per trade, 25% max position exposure, available margin verification, and surveillance symbol blocking.
 * [ ] **1.11 Daily Loss Circuit Breaker & Emergency Kill-Switch** (`src/risk/circuit_breaker.rs`): Panic button & daily loss limits.
 * [ ] **1.12 Indian Market Upper/Lower Circuit Guard** (`src/risk/market_circuits.rs`): 5%, 10%, 20% circuit band protection.
 * [ ] **1.13 Trailing Stop-Loss Engine** (`src/risk/trailing_stop.rs`): Breakeven auto-lock (+1R) and trailing profit lock (+1.5R).

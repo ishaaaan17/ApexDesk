@@ -3,6 +3,7 @@
 pub mod broker;
 pub mod models;
 pub mod orderbook;
+pub mod risk;
 pub mod taxes;
 pub mod types;
 
@@ -11,6 +12,7 @@ use models::{
     AccountId, Ledger, Order, OrderId, OrderSide, OrderType, Portfolio, TradingAccount, UserId,
 };
 use orderbook::OrderBook;
+use risk::PreTradeRiskEngine;
 use types::Money;
 
 fn main() {
@@ -59,21 +61,32 @@ fn main() {
         println!("    Ask #{}: {} | {} shares", i + 1, p, q);
     }
 
-    // 4. High-Throughput Matching Engine (Feature 1.9)
+    // 4. Pre-Trade Risk Engine Check (Feature 1.10)
     let tcs_entry = best_ask_p;
-    let qty = 20;
+    let tcs_sl = Money::from_rupees(3475.0);
+    let risk_engine = PreTradeRiskEngine::new();
+    let max_safe_shares = risk_engine.calculate_max_shares(&account, tcs_entry, tcs_sl);
+    println!("\nPre-Trade Risk Engine Sizing: Max Safe Shares = {}", max_safe_shares);
+
+    let qty = max_safe_shares.min(7);
     let mut order = Order::new(
         OrderId(9001),
         user_id,
         account_id,
         "TCS.NS",
         OrderSide::Buy,
-        OrderType::Limit {
-            limit_price: tcs_entry,
+        OrderType::Bracket {
+            entry_limit: Some(tcs_entry),
+            stop_loss: tcs_sl,
+            take_profit: Money::from_rupees(3580.0),
         },
         qty,
     ).unwrap();
 
+    risk_engine.validate_order(&account, &order, tcs_entry).expect("Pre-trade risk failed");
+    println!("Pre-Trade Risk Validation: PASS (1% Risk Cap & 25% Position Cap Verified)");
+
+    // 5. Matching Engine Execution (Feature 1.9)
     let order_margin = tcs_entry.mul_qty(qty);
     account.allocate_margin(order_margin).unwrap();
 
@@ -85,7 +98,7 @@ fn main() {
             fill.fill_id, fill.qty, fill.price, fill.maker_order_id.0, fill.taker_order_id.0);
     }
 
-    // 5. Portfolio Position Tracking
+    // 6. Portfolio Position Tracking
     let mut portfolio = Portfolio::new(user_id, account_id);
     portfolio.buy("TCS.NS", qty, tcs_entry).unwrap();
     ledger.record_position_entry(user_id, "TCS.NS", order_margin).unwrap();

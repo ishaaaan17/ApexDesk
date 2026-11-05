@@ -3,5 +3,6 @@
 pub mod broker;
 pub mod models;
 pub mod orderbook;
+pub mod risk;
 pub mod taxes;
 pub mod types;
