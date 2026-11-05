@@ -204,7 +204,7 @@ The in-memory matching engine executes thousands of simulated fills per millisec
 * [x] **1.3 Precision Rounding & Math Helpers** (`src/types/math.rs`)
 * [x] **1.4 Multi-Tenant User & Account State Model** (`src/models/account.rs`)
 * [x] **1.5 Double-Entry Accounting Ledger** (`src/models/ledger.rs`)
-* [ ] **1.6 Portfolio & Position Tracker** (`src/models/portfolio.rs`)
+* [x] **1.6 Portfolio & Position Tracker** (`src/models/portfolio.rs`)
 * [ ] **1.7 Bracket, Market, Limit & Stop Order State Machine** (`src/models/order.rs`)
 * [ ] **1.8 In-Memory Order Book** (`src/orderbook/mod.rs`)
 * [ ] **1.9 High-Throughput Matching Engine** (`src/broker/matching_engine.rs`)

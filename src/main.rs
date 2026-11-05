@@ -4,57 +4,55 @@ pub mod models;
 pub mod taxes;
 pub mod types;
 
-use models::{AccountId, Ledger, TradingAccount, UserId};
-use types::{normalize_to_tick, BasisPoints, Money, NSE_DEFAULT_TICK_SIZE_PAISE};
+use models::{AccountId, Ledger, Portfolio, TradingAccount, UserId};
+use types::{normalize_to_tick, Money, NSE_DEFAULT_TICK_SIZE_PAISE};
 
 fn main() {
     println!("⚡ ApexDesk (Rust) - Quantitative Trading Engine");
     println!("------------------------------------------------");
 
     let user_id = UserId(42);
+    let account_id = AccountId(1001);
     let initial_capital = Money::from_rupees(100000.0);
 
-    // 1. Double-Entry Accounting Ledger (Immutable Audit Trail)
+    // 1. Double-Entry Accounting Ledger
     let mut ledger = Ledger::new();
     ledger.record_deposit(user_id, initial_capital).expect("Deposit failed");
-    println!("Double-Entry Ledger Initialized (Transaction #1: Deposit)");
-    println!("  Audit Integrity: {}", if ledger.audit_integrity() { "PASS (Debits == Credits)" } else { "FAIL" });
+    println!("Double-Entry Ledger Initialized (Audit: {})", if ledger.audit_integrity() { "PASS" } else { "FAIL" });
 
-    // 2. Multi-Tenant Account Model (10,000 Users Scale)
-    let mut account = TradingAccount::new(AccountId(1001), user_id, initial_capital);
-    println!("\nAccount #{} (User #{}) Active", account.account_id.0, account.user_id.0);
-    println!("  Available Margin:   {}", account.available_margin());
+    // 2. Multi-Tenant Account Model
+    let mut account = TradingAccount::new(account_id, user_id, initial_capital);
+    println!("Account #{} (User #{}) Active - Available: {}", account.account_id.0, account.user_id.0, account.available_margin());
 
-    // 3. Lock Margin & Record in Ledger
-    let order_margin = Money::from_rupees(25000.0);
-    account.allocate_margin(order_margin).unwrap();
-    ledger.record_position_entry(user_id, "TCS.NS", order_margin).unwrap();
-    println!("\nLocked {} margin (Recorded in Ledger Tx #2):", order_margin);
-    println!("  Allocated Margin:   {}", account.allocated_margin);
-    println!("  Remaining Free:     {}", account.available_margin());
+    // 3. Portfolio & Position Tracker (Feature 1.6)
+    let mut portfolio = Portfolio::new(user_id, account_id);
+    let tcs_entry = Money::from_rupees(3500.0);
+    let tcs_qty = 20;
+    let tcs_margin = tcs_entry.mul_qty(tcs_qty); // Rs 70,000
 
-    // 4. Price Snapping & Execution
-    let raw_price = Money::from_paise(251523);
-    let clean_price = normalize_to_tick(raw_price, NSE_DEFAULT_TICK_SIZE_PAISE);
-    let slippage_bps = BasisPoints::from_bps(5);
-    let slippage_cost = slippage_bps.apply_to(clean_price.mul_qty(10));
-    println!("\nExecution Simulation (10 shares):");
-    println!("  Raw Price:          {}", raw_price);
-    println!("  Tick-Snapped:       {}", clean_price);
-    println!("  5 BPS Slippage:     {}", slippage_cost);
+    account.allocate_margin(tcs_margin).unwrap();
+    portfolio.buy("TCS.NS", tcs_qty, tcs_entry).unwrap();
+    ledger.record_position_entry(user_id, "TCS.NS", tcs_margin).unwrap();
 
-    // 5. Settle Trade & Record Settlement in Ledger
-    let net_pnl = Money::from_paise(186136); // +Rs 1,861.36
-    let fees = Money::from_paise(13864);
-    let net_cash_returned = order_margin + net_pnl;
+    println!("\nPortfolio Holdings (1 Position Open):");
+    let pos = portfolio.get_position("TCS.NS").unwrap();
+    println!("  Holding: {} shares of {} @ {}", pos.qty, pos.symbol, pos.avg_entry_price);
+    println!("  Cost Basis:         {}", pos.cost_basis());
+    println!("  Unrealized MTM P&L: {} ({:+.2}%)", pos.unrealized_pnl(), pos.return_pct());
 
-    account.release_margin(order_margin).unwrap();
-    account.settle_trade(net_pnl, fees);
-    ledger.record_trade_settlement(user_id, "TCS.NS", order_margin, net_cash_returned, fees, net_pnl + fees).unwrap();
+    // 4. Price Fluctuation (Mark-to-Market Update)
+    let new_quote = Money::from_rupees(3545.00); // Rallies +Rs 45/share
+    portfolio.update_market_quotes(&[("TCS.NS", new_quote)]);
+    let pos_updated = portfolio.get_position("TCS.NS").unwrap();
+    println!("\nLive Quote Update -> TCS.NS at Rs 3545.00:");
+    println!("  Current MTM Value:  {}", pos_updated.current_market_value());
+    println!("  Unrealized MTM P&L: {} ({:+.2}%)", pos_updated.unrealized_pnl(), pos_updated.return_pct());
+    println!("  Portfolio Total MTM:{}", portfolio.total_unrealized_pnl());
 
-    println!("\nTrade Settled & Audited (Tx #3):");
-    println!("  Final Cash Balance: {}", account.cash_balance);
-    println!("  Total Realized P&L: {}", account.realized_pnl);
-    println!("  Ledger Tx Count:    {}", ledger.transaction_count());
-    println!("  Full Ledger Audit:  {}", if ledger.audit_integrity() { "PASS 100% (Strictly Balanced)" } else { "FAIL" });
+    // 5. Partial Profit Exit (Sell 10 shares @ Rs 3550)
+    let exit_price = normalize_to_tick(Money::from_paise(355000), NSE_DEFAULT_TICK_SIZE_PAISE);
+    let realized_gain = portfolio.sell("TCS.NS", 10, exit_price).unwrap();
+    println!("\nPartial Exit (Sold 10 shares @ {}):", exit_price);
+    println!("  Gross Realized Gain:{}", realized_gain);
+    println!("  Remaining Holding:  {} shares of TCS.NS", portfolio.get_position("TCS.NS").unwrap().qty);
 }
