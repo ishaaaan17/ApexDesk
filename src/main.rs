@@ -12,7 +12,10 @@ use models::{
     AccountId, Ledger, Order, OrderId, OrderSide, OrderType, Portfolio, TradingAccount, UserId,
 };
 use orderbook::OrderBook;
-use risk::{CircuitBand, CircuitBreakerConfig, DailyCircuitBreaker, MarketCircuitGuard, PreTradeRiskEngine};
+use risk::{
+    CircuitBand, CircuitBreakerConfig, DailyCircuitBreaker, MarketCircuitGuard, PreTradeRiskEngine,
+    TrailingStop,
+};
 use types::Money;
 
 fn main() {
@@ -132,4 +135,23 @@ fn main() {
     circuit_breaker.check_and_update(initial_capital, Money::zero(), portfolio.total_unrealized_pnl(), 1000000)
         .expect("Circuit breaker tripped");
     println!("Circuit Breaker Status: PASS (Active, Drawdown within limit)");
+
+    // 8. Trailing Stop-Loss Engine (Feature 1.13)
+    let mut trailing_stop = TrailingStop::new(
+        OrderId(9001),
+        "TCS.NS",
+        OrderSide::Buy,
+        tcs_entry,
+        tcs_sl,
+    ).unwrap();
+    println!("\nTrailing Stop Initialized: Entry = {}, Initial Stop = {} (1R = Rs {:.2})",
+        trailing_stop.entry_price, trailing_stop.initial_stop, trailing_stop.risk_unit_paise as f64 / 100.0);
+
+    // Simulate price moving to +1.0R (Rs 3545.00) -> Breakeven auto-lock
+    let update1 = trailing_stop.update_quote(Money::from_rupees(3545.0));
+    println!("  Market Tick Rs 3545.00 (+1.0R) -> {:?}", update1);
+
+    // Simulate price expanding to +1.6R (Rs 3566.00) -> Profit lock (+1.0R profit)
+    let update2 = trailing_stop.update_quote(Money::from_rupees(3566.0));
+    println!("  Market Tick Rs 3566.00 (+1.6R) -> {:?}", update2);
 }

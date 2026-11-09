@@ -37,7 +37,7 @@ Developed by **[Ishaan Maheshwari (@ishaaaan17)](https://github.com/ishaaaan17)*
 * [x] **1.10 Pre-Trade Risk Engine** (`src/risk/pre_trade.rs`): Non-bypassable 1% max risk cap per trade, 25% max position exposure, available margin verification, and surveillance symbol blocking.
 * [x] **1.11 Daily Loss Circuit Breaker & Emergency Kill-Switch** (`src/risk/circuit_breaker.rs`): User-configurable daily drawdown limits (in BPS or flat Rupee amount), streak breakers, and atomic panic order cancellation + position flattening.
 * [x] **1.12 Indian Market Upper/Lower Circuit Guard** (`src/risk/market_circuits.rs`): SEBI/NSE 2%, 5%, 10%, 20% price bands, circuit freeze lockouts (UC buy / LC sell protection), and F&O cooling period band relaxation.
-* [ ] **1.13 Trailing Stop-Loss Engine** (`src/risk/trailing_stop.rs`): Breakeven auto-lock (+1R) and trailing profit lock (+1.5R).
+* [x] **1.13 Trailing Stop-Loss Engine** (`src/risk/trailing_stop.rs`): Dynamic R-multiple tracking, Breakeven Auto-Lock (+1.0R), Profit Lock (+1.5R), peak-trailing state machine, and stop ratchet invariants.
 
 ### Pillar 5: Market Data & Quant Math Core
 * [ ] **1.14 Multi-Timeframe Candle Aggregator** (`src/indicators/bars.rs`): Aggregates ticks to 1m, 5m, 15m OHLCV bars.
