@@ -12,7 +12,7 @@ use models::{
     AccountId, Ledger, Order, OrderId, OrderSide, OrderType, Portfolio, TradingAccount, UserId,
 };
 use orderbook::OrderBook;
-use risk::{CircuitBreakerConfig, DailyCircuitBreaker, PreTradeRiskEngine};
+use risk::{CircuitBand, CircuitBreakerConfig, DailyCircuitBreaker, MarketCircuitGuard, PreTradeRiskEngine};
 use types::Money;
 
 fn main() {
@@ -86,7 +86,22 @@ fn main() {
     risk_engine.validate_order(&account, &order, tcs_entry).expect("Pre-trade risk failed");
     println!("Pre-Trade Risk Validation: PASS (1% Risk Cap & 25% Position Cap Verified)");
 
-    // 5. Matching Engine Execution (Feature 1.9)
+    // 5. Market Circuit Guard Check (Feature 1.12)
+    let mut circuit_guard = MarketCircuitGuard::new();
+    let tcs_circuit = circuit_guard
+        .register_security(
+            "TCS.NS",
+            Money::from_rupees(3450.0),
+            CircuitBand::TenPercent,
+        )
+        .clone();
+    circuit_guard
+        .validate_order_price("TCS.NS", OrderSide::Buy, tcs_entry)
+        .expect("Circuit guard failed");
+    println!("Market Circuit Guard: PASS (TCS.NS Range [LC: {}, UC: {}])",
+        tcs_circuit.lower_circuit, tcs_circuit.upper_circuit);
+
+    // 6. Matching Engine Execution (Feature 1.9)
     let order_margin = tcs_entry.mul_qty(qty);
     account.allocate_margin(order_margin).unwrap();
 
